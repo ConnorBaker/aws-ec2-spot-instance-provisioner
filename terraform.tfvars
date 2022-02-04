@@ -1,0 +1,8 @@
+region           = "us-east-1"
+az               = "us-east-1a"
+cidr_vpc         = "10.0.0.0/16"
+cidr_subnet      = "10.0.0.0/24"
+cidr_allowed_ssh = "67.174.76.24/32"
+instance_type    = "c6g.metal"
+instance_arch    = "arm64"
+key_name         = "connor-ec2"

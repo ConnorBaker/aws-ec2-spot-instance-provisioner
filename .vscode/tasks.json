@@ -1,0 +1,30 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "format markdown",
+            "type": "shell",
+            "command": "pandoc",
+            "args": [
+                "--from",
+                "markdown",
+                "--to",
+                "markdown",
+                "--markdown-headings=atx",
+                "'${file}'",
+                "-o",
+                "'${file}'"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
+        }
+    ]
+}
