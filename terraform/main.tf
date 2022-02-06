@@ -3,13 +3,19 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 3.74.0"
+      version = ">= 3.74.0"
+    }
+
+    local = {
+      source  = "hashicorp/local"
+      version = ">= 2.1.0"
     }
   }
 }
 
 provider "aws" {
-  region = var.region
+  region                  = var.region
+  shared_credentials_file = file(var.aws_credentials_path)
 }
 
 data "aws_ec2_instance_type_offerings" "acceptable_azs" {
@@ -152,6 +158,11 @@ data "aws_ami" "nixos" {
   owners = ["080433136561"] # NixOS
 }
 
+resource "aws_key_pair" "kp" {
+  key_name   = var.key_name
+  public_key = file(var.public_key_path)
+}
+
 resource "aws_instance" "ec2" {
   ami                         = data.aws_ami.nixos.id
   instance_type               = var.instance_type
@@ -169,8 +180,4 @@ resource "aws_instance" "ec2" {
   tags = {
     Name = "terraform-ec2"
   }
-}
-
-output "public_dns" {
-  value = aws_instance.ec2.public_dns
 }
