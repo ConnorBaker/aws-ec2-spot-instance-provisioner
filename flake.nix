@@ -9,11 +9,8 @@
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       with nixpkgs.legacyPackages.${system};
-      {
-        defaultPackage = stdenvNoCC.mkDerivation {
-          pname = "nix-hadoop-aarch64-test";
-          version = "0.0.1";
-          srcs = self;
+      rec {
+        devShell = mkShell rec {
           buildInputs = [
             awscli2
             terraform
@@ -21,7 +18,6 @@
             coreutils
             nmap
           ];
-          builder = ./. + /nix/builder.sh;
         };
       });
 }

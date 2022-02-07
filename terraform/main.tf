@@ -159,7 +159,7 @@ data "aws_ami" "nixos" {
 }
 
 resource "aws_key_pair" "kp" {
-  key_name   = var.key_name
+  key_name   = var.aws_key_pair_name
   public_key = file(var.public_key_path)
 }
 
@@ -170,7 +170,7 @@ resource "aws_instance" "ec2" {
   vpc_security_group_ids      = [aws_security_group.sg_terraform_ssh.id]
   subnet_id                   = aws_subnet.subnet.id
   associate_public_ip_address = true
-  key_name                    = var.key_name
+  key_name                    = var.aws_key_pair_name
 
   root_block_device {
     volume_size = 30

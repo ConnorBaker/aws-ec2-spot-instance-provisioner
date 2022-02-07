@@ -1,5 +1,4 @@
-# Nix build
-result
+ssh_keys/
 
 # Local .terraform directories
 **/.terraform/*

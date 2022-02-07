@@ -39,10 +39,9 @@ variable "instance_arch" {
 variable "public_key_path" {
   description = "Path of the private key to use to create an AWS key pair. By default this looks to ../result/ssh/id_ed25519.pub which is created by nix build."
   type        = string
-  default     = "../result/ssh/id_ed25519.pub"
 }
 
-variable "key_name" {
+variable "aws_key_pair_name" {
   description = "Name of the RSA 2048 bit key pair to create"
   type        = string
 }
