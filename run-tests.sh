@@ -108,19 +108,9 @@ fi
 sed -i "s#^store.*#store = $HOME/ramdisk#" ~/.config/nix/nix.conf
 echo "Pointed nix to the local store on the ramdisk."
 
-# Copy and unpack nixpkgs
-mkdir -p ~/ramdisk/workspace/nixpkgs
-echo "Created workspace for nixpkgs at ~/ramdisk/workspace/nixpkgs"
-echo "Copying nixpkgs from https://github.com/ConnorBaker/nixpkgs/archive/refs/heads/nixpkgs-unstable..."
-curl --silent -L https://github.com/ConnorBaker/nixpkgs/archive/refs/heads/nixpkgs-unstable.tar.gz |
-  tar -xz --directory ~/ramdisk/workspace/nixpkgs --strip-components 1
-echo "Extracted nixpkgs from https://github.com/ConnorBaker/nixpkgs/archive/refs/heads/nixpkgs-unstable.tar.gz"
-
-# Build the test for hadoop
-cd ~/ramdisk/workspace
-echo "Entered workspace ~/ramdisk/workspace."
-
-# nix build -f ./nixpkgs/nixos/tests/hadoop/hadoop.nix --print-build-logs 2>&1
+echo "Building the hadoop tests"
+nix build github:/connorbaker/nixpkgs#nixosTests.hadoop --out-link hadoop
+echo "Build successful!"
 TESTS_SCRIPT
 ) | sed "s/^/    /" | tee -a "$LOG" || terraform_cleanup
 log_info "Running build command."
