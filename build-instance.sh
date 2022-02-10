@@ -106,7 +106,7 @@ log_info "Running commands to update instance to nixos-unstable..."
     ssh -T -i "$SSH_KEYS_DIR/id_ed25519" \
         -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile=/dev/null \
-        "root@$EC2_HOSTNAME" 2>&1 <<UPDATE_SCRIPT
+        "root@$EC2_HOSTNAME" 2>&1 <<BUILD_INSTANCE_COMMANDS
 set -eu -o pipefail
 
 mkdir -p ~/.config/{nix,nixpkgs}
@@ -118,12 +118,11 @@ EOF
 cat >~/.config/nix/nix.conf <<EOF
 system-features = nixos-test benchmark big-parallel kvm
 experimental-features = nix-command flakes
-store = /
 EOF
 
 nix-channel --add https://nixos.org/channels/nixos-unstable nixos
 nixos-rebuild switch --upgrade
-UPDATE_SCRIPT
+BUILD_INSTANCE_COMMANDS
 ) | sed "s/^/    /" | tee -a "$LOG" || terraform_cleanup
 log_info "Finished updating instance."
 log_info "Finished build-instance.sh."

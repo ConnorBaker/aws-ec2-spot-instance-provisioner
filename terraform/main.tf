@@ -18,30 +18,6 @@ provider "aws" {
   shared_credentials_file = file(var.aws_credentials_path)
 }
 
-data "aws_ec2_instance_type_offerings" "acceptable_azs" {
-  filter {
-    name   = "instance-type"
-    values = [var.instance_type]
-  }
-
-  location_type = "availability-zone"
-}
-
-
-data "aws_availability_zones" "available_azs" {
-  state = "available"
-
-  filter {
-    name   = "zone-name"
-    values = var.az == null ? data.aws_ec2_instance_type_offerings.acceptable_azs.locations : [var.az]
-  }
-}
-
-locals {
-  chosen_az    = data.aws_availability_zones.available_azs.names[0]
-  chosen_az_id = data.aws_availability_zones.available_azs.zone_ids[0]
-}
-
 resource "aws_vpc" "vpc" {
   cidr_block           = var.cidr_vpc
   enable_dns_support   = true
@@ -87,9 +63,8 @@ resource "aws_network_acl" "nacl" {
 }
 
 resource "aws_subnet" "subnet" {
-  vpc_id               = aws_vpc.vpc.id
-  cidr_block           = var.cidr_subnet
-  availability_zone_id = local.chosen_az_id
+  vpc_id     = aws_vpc.vpc.id
+  cidr_block = var.cidr_subnet
 
   tags = {
     Name = "terraform-subnet"
@@ -163,10 +138,11 @@ resource "aws_key_pair" "kp" {
   public_key = file(var.public_key_path)
 }
 
-resource "aws_instance" "ec2" {
-  ami                         = data.aws_ami.nixos.id
-  instance_type               = var.instance_type
-  availability_zone           = local.chosen_az
+resource "aws_spot_instance_request" "ec2" {
+  ami                  = data.aws_ami.nixos.id
+  instance_type        = var.instance_type
+  wait_for_fulfillment = true
+
   vpc_security_group_ids      = [aws_security_group.sg_terraform_ssh.id]
   subnet_id                   = aws_subnet.subnet.id
   associate_public_ip_address = true
