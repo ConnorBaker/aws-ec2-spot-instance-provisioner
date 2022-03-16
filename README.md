@@ -1,3 +1,7 @@
+# AWS EC2 Spot Instance Provisioner
+
+[![built with nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
+
 ## About
 
 The scripts in `scripts` provision an EC2 spot instance in Ohio (which
