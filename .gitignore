@@ -1,5 +1,7 @@
 ssh_keys/
 
+.DS_Store
+
 # Local .terraform directories
 **/.terraform/*
 **/.terraform*

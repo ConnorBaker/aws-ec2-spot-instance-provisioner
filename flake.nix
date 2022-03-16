@@ -13,7 +13,7 @@
         devShell = mkShell rec {
           buildInputs = [
             awscli2
-            terraform
+            (terraform.withPlugins (ps: with ps; [ aws local tls ]))
             openssh
             coreutils
             nmap

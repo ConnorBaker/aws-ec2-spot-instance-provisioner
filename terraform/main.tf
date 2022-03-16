@@ -3,19 +3,23 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 3.74.0"
+      version = "~> 4.5"
     }
 
     local = {
       source  = "hashicorp/local"
-      version = ">= 2.1.0"
+      version = "~> 2.2"
+    }
+
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 3.1"
     }
   }
 }
 
 provider "aws" {
-  region                  = var.region
-  shared_credentials_file = file(var.aws_credentials_path)
+  region = var.region
 }
 
 resource "aws_vpc" "vpc" {
@@ -117,29 +121,40 @@ resource "aws_security_group" "sg_terraform_ssh" {
   }
 }
 
-data "aws_ami" "nixos" {
+data "aws_ami" "al2022" {
   most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["al2022-ami-minimal*"] # Amazon Linux 2022
+  }
 
   filter {
     name   = "architecture"
     values = [var.instance_arch]
   }
 
-  filter {
-    name   = "name"
-    values = ["NixOS-21.11*"]
-  }
+  owners = ["137112412989"] # Amazon
+}
 
-  owners = ["080433136561"] # NixOS
+resource "tls_private_key" "pk" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+resource "local_file" "local_pk" {
+  content         = tls_private_key.pk.private_key_pem
+  filename        = "pk.pem"
+  file_permission = "0400"
 }
 
 resource "aws_key_pair" "kp" {
   key_name   = var.aws_key_pair_name
-  public_key = file(var.public_key_path)
+  public_key = tls_private_key.pk.public_key_openssh
 }
 
 resource "aws_spot_instance_request" "ec2" {
-  ami                  = data.aws_ami.nixos.id
+  ami                  = data.aws_ami.al2022.id
   instance_type        = var.instance_type
   wait_for_fulfillment = true
 

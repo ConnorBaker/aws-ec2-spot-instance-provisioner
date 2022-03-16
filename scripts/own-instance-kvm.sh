@@ -1,46 +1,10 @@
 #! /usr/bin/env bash
 
-# Error on failure
-set -eu -o pipefail
+source ./scripts/utils.sh
 
-function iso_time() {
-    date -u +"%Y-%m-%dT%H:%M:%SZ"
-}
-
-function log_msg() {
-    echo "[$(iso_time)]$1 $2" 2>&1 | tee -a "$LOG"
-}
-
-function log_info() {
-    log_msg "[INFO]" "$1"
-}
-
-function log_warning() {
-    log_msg "[WARNING]" "$1"
-}
-
-function log_error() {
-    log_msg "[ERROR]" "$1"
-}
-
-function log_error_and_exit() {
-    log_error "$1"
-    exit 1
-}
-
-function terraform_cleanup() {
-    log_error "An error occurred. Please check the logs."
-    log_info "Destroying deployed infrastructure..."
-    terraform -chdir="$TERRAFORM_DIR" destroy -auto-approve -no-color 2>&1 |
-        sed "s/^/    /" | tee -a "$LOG" ||
-        log_error_and_exit "terraform destroy failed: Manual intervention is required!"
-    log_info "Deployed infrastructure was successfully destroyed."
-    exit 1
-}
-
-ROOT_WORKSPACE="$(pwd)"
-LOG="$ROOT_WORKSPACE/$(iso_time)-run-tests.log"
-log_info "Starting run-tests.sh and logging to $LOG..."
+ROOT_WORKSPACE="$PWD"
+LOG="$ROOT_WORKSPACE/$(iso_time)-own-instance-kvm.log"
+log_info "Starting own-instance-kvm.sh and logging to $LOG..."
 log_info "Workspace is $ROOT_WORKSPACE"
 
 TERRAFORM_DIR="$ROOT_WORKSPACE/terraform"
@@ -77,25 +41,22 @@ else
     log_info "$EC2_HOSTNAME has SSH open."
 fi
 
-log_info "Running build command on $EC2_HOSTNAME..."
+log_info "Running command to own KVM on $EC2_HOSTNAME..."
 (
     ssh -T -i "$SSH_KEYS_DIR/id_ed25519" \
         -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile=/dev/null \
-        "root@$EC2_HOSTNAME" 2>&1 <<"TESTS_COMMAND"
+        "root@$EC2_HOSTNAME" 2>&1 <<OWN_KVM_COMMANDS
 set -eu -o pipefail
 
-echo "Building hadoop"
-nix build github:/connorbaker/nixpkgs/master#hadoop --store ~/ramdisk
-echo "Build successful!"
-
-echo "Building the hadoop tests"
-time nix build github:/connorbaker/nixpkgs/master#nixosTests.{hadoop,hadoop-yarn,hadoop-hdfs} --store ~/ramdisk
-echo "Build successful!"
-TESTS_COMMAND
-) | sed "s/^/    /" | tee -a "$LOG" || log_error_and_exit "Command failed! Instance is still running and available with ssh -i $SSH_KEYS_DIR/id_ed25519 root@$EC2_HOSTNAME"
-log_info "Builds completed."
-log_info "Finished run-tests.sh"
+# Own /dev/kvm
+echo "Owning /dev/kvm"
+chmod 0666 /dev/kvm
+echo "Successfully owned /dev/kvm"
+OWN_KVM_COMMANDS
+) | sed "s/^/    /" | tee -a "$LOG" || terraform_cleanup
+log_info "Successfully owned KVM."
+log_info "Finished own-instance-kvm.sh"
 log_info "Instance is running and available with ssh -i $SSH_KEYS_DIR/id_ed25519 root@$EC2_HOSTNAME"
 
 exit 0
