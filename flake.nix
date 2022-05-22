@@ -2,7 +2,7 @@
   description = "A flake for provisioning AWS EC2 instances with NixOS";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -13,7 +13,7 @@
         devShell = mkShell rec {
           buildInputs = [
             awscli2
-            (terraform.withPlugins (ps: with ps; [ aws local tls ]))
+            (terraform.withPlugins (ps: with ps; [ aws cloudinit local tls ]))
             openssh
             coreutils
             nmap

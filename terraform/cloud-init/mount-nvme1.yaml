@@ -1,0 +1,18 @@
+#cloud-config
+apt:
+    sources:
+      cuda.list:
+        keyid: 3bf863cc
+        keyserver: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
+        source: "deb [signed-by=$KEY_FILE] http://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
+  
+runcmd:
+  # Delete the old nvidia key
+  - sudo apt-key del 7fa2af80
+  # Delete the first line of /etc/apt/sources.list.d/cuda.list,
+  # which contains a reference to the unsigned repo
+  - sudo sed -i '1d' /etc/apt/sources.list.d/cuda.list
+  # Mount the ephemeral NVMe device
+  - sudo mkfs -t ext4 -L workspace /dev/nvme1n1
+  - sudo mkdir -p /workspace
+  - sudo mount /dev/nvme1n1 /workspace

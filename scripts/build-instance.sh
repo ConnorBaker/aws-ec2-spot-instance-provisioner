@@ -28,6 +28,9 @@ log_info "Finished provisioning EC2."
 EC2_HOSTNAME=$(terraform -chdir="$TERRAFORM_DIR" output -raw instance_public_dns)
 log_info "EC2 hostname is $EC2_HOSTNAME"
 
+EC2_USERNAME=$(terraform -chdir="$TERRAFORM_DIR" output -raw instance_username)
+log_info "EC2 username is $EC2_USERNAME"
+
 log_info "Waiting for $EC2_HOSTNAME ssh to open..."
 ((count = 60)) # Maximum number to try.
 ssh_port_status="$(nmap -Pn "$EC2_HOSTNAME" -p ssh | grep open || echo "closed")"
@@ -45,28 +48,29 @@ else
     log_info "$EC2_HOSTNAME has SSH open."
 fi
 
-log_info "Running commands to update instance to nixos-unstable..."
+log_info "Running commands to install nix..."
 (
     ssh -T -i "$TERRAFORM_DIR/pk.pem" \
         -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile=/dev/null \
-        "ec2-user@$EC2_HOSTNAME" 2>&1 <<BUILD_INSTANCE_COMMANDS
+        "$EC2_USERNAME@$EC2_HOSTNAME" 2>&1 <<BUILD_INSTANCE_COMMANDS
 set -eu -o pipefail
-sudo setenforce 0
-sudo mkdir {/nix,~/ramdisk}
-sudo mount -t tmpfs tmpfs /nix
-sudo mount -t tmpfs tmpfs ~/ramdisk
-curl -L https://nixos.org/nix/install | sh
-. /home/ec2-user/.nix-profile/etc/profile.d/nix.sh
+if command -v nix &> /dev/null
+then
+    echo "nix is already installed."
+    exit 0
+fi
 mkdir -p ~/.config/{nix,nixpkgs,htop}
-cat >~/.config/nixpkgs/config.nix <<EOF
-{
-  allowUnfree = true;
-}
-EOF
 cat >~/.config/nix/nix.conf <<EOF
-system-features = nixos-test benchmark big-parallel kvm
+bash-prompt = λ.
 experimental-features = nix-command flakes
+system-features = benchmark big-parallel
+max-jobs = auto
+http-connections = 0
+substitute = true
+fallback = true
+substituters = https://cache.nixos.org https://nix-community.cachix.org https://hydra.iohk.io https://cache.ngi0.nixos.org
+trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.ngi0.nixos.org-1:KqH5CBLNSyX184S9BKZJo1LxrxJ9ltnY2uAs5c/f1MA=
 EOF
 cat >~/.config/htop/htoprc <<EOF
 # Beware! This file is rewritten by htop when settings are changed in the interface.
@@ -114,11 +118,12 @@ column_meter_modes_0=1 1 1
 column_meters_1=RightCPUs CPU Memory
 column_meter_modes_1=1 1 1
 EOF
-nix profile install nixpkgs#{git,htop}
+curl -L https://nixos.org/nix/install | sh
+. ~/.nix-profile/etc/profile.d/nix.sh
+nix profile install nixpkgs/nixpkgs-unstable#{git,htop,cachix}
 BUILD_INSTANCE_COMMANDS
 ) | sed "s/^/    /" | tee -a "$LOG" || terraform_cleanup
 log_info "Finished updating instance."
 log_info "Finished build-instance.sh."
-log_info "Instance is running and available with ssh -i $TERRAFORM_DIR/pk.pem ec2-user@$EC2_HOSTNAME"
-
+log_info "Instance is running and available with ssh -i $TERRAFORM_DIR/pk.pem $EC2_USERNAME@$EC2_HOSTNAME"
 exit 0

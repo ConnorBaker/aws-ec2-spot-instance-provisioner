@@ -1,9 +1,14 @@
 terraform {
-  required_version = ">= 1.1.4"
+  required_version = ">= 1.1.9"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 4.5"
+      version = "~> 4.14"
+    }
+
+    cloudinit = {
+      source  = "hashicorp/cloudinit"
+      version = "~> 2.2.0"
     }
 
     local = {
@@ -13,7 +18,7 @@ terraform {
 
     tls = {
       source  = "hashicorp/tls"
-      version = "~> 3.1"
+      version = "~> 3.3"
     }
   }
 }
@@ -43,15 +48,6 @@ resource "aws_internet_gateway" "igw" {
 resource "aws_network_acl" "nacl" {
   vpc_id = aws_vpc.vpc.id
 
-  ingress {
-    protocol   = -1
-    rule_no    = 100
-    action     = "allow"
-    cidr_block = var.cidr_allowed_ssh
-    from_port  = 0
-    to_port    = 0
-  }
-
   egress {
     protocol   = -1
     rule_no    = 100
@@ -64,6 +60,18 @@ resource "aws_network_acl" "nacl" {
   tags = {
     Name = "terraform-nacl"
   }
+}
+
+resource "aws_network_acl_rule" "ingress_rule" {
+  count          = length(var.cidr_allowed)
+  network_acl_id = aws_network_acl.nacl.id
+  rule_number    = 100 + count.index
+  egress         = false
+  protocol       = -1
+  rule_action    = "allow"
+  cidr_block     = var.cidr_allowed[count.index]
+  from_port      = 0
+  to_port        = 0
 }
 
 resource "aws_subnet" "subnet" {
@@ -106,8 +114,16 @@ resource "aws_security_group" "sg_terraform_ssh" {
     from_port   = 0
     to_port     = 0
     protocol    = -1
-    cidr_blocks = [var.cidr_allowed_ssh]
+    cidr_blocks = var.cidr_allowed
   }
+
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = -1
+    cidr_blocks = [var.cidr_subnet]
+  }
+
 
   egress {
     from_port   = 0
@@ -121,12 +137,12 @@ resource "aws_security_group" "sg_terraform_ssh" {
   }
 }
 
-data "aws_ami" "al2022" {
+data "aws_ami" "ami" {
   most_recent = true
 
   filter {
     name   = "name"
-    values = ["al2022-ami-minimal*"] # Amazon Linux 2022
+    values = var.ami_names
   }
 
   filter {
@@ -134,7 +150,7 @@ data "aws_ami" "al2022" {
     values = [var.instance_arch]
   }
 
-  owners = ["137112412989"] # Amazon
+  owners = var.ami_owners
 }
 
 resource "tls_private_key" "pk" {
@@ -153,8 +169,19 @@ resource "aws_key_pair" "kp" {
   public_key = tls_private_key.pk.public_key_openssh
 }
 
+data "cloudinit_config" "user_data" {
+  gzip          = true
+  base64_encode = true
+
+  part {
+    content_type = "text/cloud-config"
+    content      = file("./cloud-init/mount-nvme1.yaml")
+    filename     = "mount-nvme1.yaml"
+  }
+}
+
 resource "aws_spot_instance_request" "ec2" {
-  ami                  = data.aws_ami.al2022.id
+  ami                  = data.aws_ami.ami.id
   instance_type        = var.instance_type
   wait_for_fulfillment = true
 
@@ -162,9 +189,10 @@ resource "aws_spot_instance_request" "ec2" {
   subnet_id                   = aws_subnet.subnet.id
   associate_public_ip_address = true
   key_name                    = var.aws_key_pair_name
+  user_data                   = data.cloudinit_config.user_data.rendered
 
   root_block_device {
-    volume_size = 30
+    volume_size = 64
     volume_type = "gp3"
   }
 

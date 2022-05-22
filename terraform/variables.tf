@@ -21,9 +21,9 @@ variable "cidr_subnet" {
   default     = "10.0.0.0/24"
 }
 
-variable "cidr_allowed_ssh" {
-  description = "CIDR block from which to allow SSH connections"
-  type        = string
+variable "cidr_allowed" {
+  description = "CIDR block from which to allow traffic"
+  type        = list(string)
 }
 
 variable "instance_type" {
@@ -33,6 +33,21 @@ variable "instance_type" {
 
 variable "instance_arch" {
   description = "Architecutre of EC2 instance to start"
+  type        = string
+}
+
+variable "ami_owners" {
+  description = "AMI owners"
+  type        = list(string)
+}
+
+variable "ami_names" {
+  description = "AMI names"
+  type        = list(string)
+}
+
+variable "ami_username" {
+  description = "AMI username"
   type        = string
 }
 
